@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Список картин</title>
+</head>
+<body>
+<h1>Список картин</h1>
+
+<a th:href="@{/paintings/add}">Добавить новую картину</a>
+
+<!-- Проверка на наличие картин -->
+<div th:if="${not #lists.isEmpty(paintings)}">
+  <ul>
+    <li th:each="painting : ${paintings}">
+      <strong th:text="${painting.title}">Название</strong><br>
+      <span th:text="${painting.artist != null ? painting.artist.name : 'Неизвестный художник'}"></span><br>
+      <span th:text="${painting.category != null ? painting.category.name : 'Неизвестная категория'}">Категория</span><br>
+      <img th:if="${painting.image != null}"
+           th:src="@{${painting.image.imageUrl}}"
+           width="200"
+           th:alt="'Изображение для картины ' + ${painting.title}" />
+      <hr>
+    </li>
+  </ul>
+</div>
+
+<!-- Сообщение, если картин нет -->
+<div th:if="${#lists.isEmpty(paintings)}">
+  <p>Нет картин для отображения.</p>
+</div>
+
+</body>
+</html>
