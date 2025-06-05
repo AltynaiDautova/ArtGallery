@@ -60,6 +60,29 @@
       transform: translateY(-2px);
     }
 
+    .status-available {
+      background-color: #28a745;
+    }
+
+    .status-reserved {
+      background-color: #ffc107;
+      color: #212529;
+    }
+
+    .status-sold {
+      background-color: #dc3545;
+    }
+
+    .sales-history {
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid #dee2e6;
+    }
+
+    .sales-table {
+      font-size: 0.9rem;
+    }
+
     @media (max-width: 768px) {
       .art-img-container {
         height: 180px;
@@ -70,13 +93,25 @@
         margin-bottom: 10px;
       }
     }
+
+    .hover-white:hover {
+      color: white !important;
+    }
+
+    footer .btn-outline-light:hover {
+      background-color: rgba(255,255,255,0.1);
+    }
+
+    footer a {
+      transition: color 0.2s ease;
+    }
   </style>
 </head>
 <body>
 <!-- Навигация -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
   <div class="container">
-    <a class="navbar-brand fw-bold" href="/">
+    <a class="navbar-brand fw-bold" th:href="@{/}">
       <i class="bi bi-palette me-2"></i>Галерея искусств
     </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -85,13 +120,33 @@
     <div class="collapse navbar-collapse" id="navbarNav">
       <ul class="navbar-nav ms-auto">
         <li class="nav-item">
-          <a class="nav-link active" href="#">
+          <a class="nav-link active" th:href="@{/paintings}">
             <i class="bi bi-grid me-1"></i>Каталог
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link" th:href="@{/paintings/add}">
             <i class="bi bi-plus-circle me-1"></i>Добавить картину
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" th:href="@{/view/exhibitions/new}">
+            <i class="bi bi-plus-circle me-1"></i>Добавить выставку
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" th:href="@{/profile}">
+            <i class="bi bi-person-circle me-1"></i>Профиль
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" th:href="@{/sales/history-admin}">
+            <i class="bi bi-receipt me-1"></i>Продажи
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" th:href="@{/auth/login}">
+            <i class="bi bi-box-arrow-right me-1"></i>Выйти
           </a>
         </li>
       </ul>
@@ -116,6 +171,19 @@
     <div class="card-body">
       <form th:action="@{/paintings}" method="get">
         <div class="row g-3 filter-row">
+          <!-- Фильтр по статусу -->
+          <div class="col-md-3">
+            <label for="statusFilter" class="form-label">Статус</label>
+            <select class="form-select" id="statusFilter" name="status">
+              <option value="">Все статусы</option>
+              <option th:each="status : ${T(com.example.art.model.Painting.PaintingStatus).values()}"
+                      th:value="${status}"
+                      th:text="${status.displayName}"
+                      th:selected="${param.status != null && param.status[0] == status}">
+              </option>
+            </select>
+          </div>
+
           <!-- Фильтр по художнику -->
           <div class="col-md-3">
             <label for="artistFilter" class="form-label">Художник</label>
@@ -210,6 +278,18 @@
   <div th:if="${not #lists.isEmpty(paintings)}" class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
     <div class="col" th:each="painting : ${paintings}">
       <div class="art-card card h-100">
+        <!-- Заголовок с статусом -->
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span th:classappend="${'status-' + painting.status.name().toLowerCase()}"
+                class="badge text-white">
+            <span th:text="${painting.status.displayName}"></span>
+          </span>
+          <span class="badge bg-primary rounded-pill"
+                th:if="${painting.price != null}"
+                th:text="${'$' + #numbers.formatDecimal(painting.price, 1, 2)}">
+          </span>
+        </div>
+
         <!-- Изображение -->
         <div class="art-img-container">
           <img th:if="${painting.image != null}"
@@ -243,8 +323,11 @@
         </div>
 
         <!-- Футер карточки -->
-        <div class="card-footer bg-transparent d-flex justify-content-between">
-          <span class="badge badge-custom rounded-pill" th:if="${painting.genre}" th:text="${painting.genre}"></span>
+        <div class="card-footer bg-transparent d-flex justify-content-between align-items-center">
+          <span class="badge badge-custom rounded-pill"
+                th:if="${painting.genre}"
+                th:text="${painting.genre}">
+          </span>
           <a th:href="@{/paintings/{id}(id=${painting.id})}" class="btn btn-sm btn-outline-primary">
             Подробнее <i class="bi bi-chevron-right ms-1"></i>
           </a>
@@ -262,12 +345,122 @@
       <i class="bi bi-arrow-counterclockwise me-2"></i>Сбросить фильтры
     </a>
   </div>
+
+  <!-- История продаж -->
+  <div class="sales-history" th:if="${not #lists.isEmpty(recentSales)}">
+    <h3 class="mb-4">
+      <i class="bi bi-receipt text-primary me-2"></i>Последние продажи
+    </h3>
+
+    <div class="table-responsive">
+      <table class="table sales-table">
+        <thead class="table-light">
+        <tr>
+          <th>Дата</th>
+          <th>Картина</th>
+          <th>Художник</th>
+          <th>Цена</th>
+          <th>Статус</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="sale : ${recentSales}">
+          <td th:text="${#temporals.format(sale.saleDate, 'dd.MM.yyyy HH:mm')}"></td>
+          <td th:text="${sale.painting.title}"></td>
+          <td th:text="${sale.painting.artist?.name ?: 'Неизвестен'}"></td>
+          <td th:text="${'$' + #numbers.formatDecimal(sale.price, 1, 2)}"></td>
+          <td>
+              <span th:classappend="${'status-' + sale.painting.status.name().toLowerCase()}"
+                    class="badge text-white">
+                <span th:text="${sale.painting.status.displayName}"></span>
+              </span>
+          </td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="text-end mt-3">
+      <a th:href="@{/sales/history-admin}" class="btn btn-outline-primary">
+        <i class="bi bi-arrow-right me-2"></i>Смотреть все продажи
+      </a>
+    </div>
+  </div>
 </main>
 
 <!-- Подвал -->
-<footer class="bg-dark text-white py-4 mt-5">
-  <div class="container text-center">
-    <p class="mb-0">© 2023 Галерея искусств. Все права защищены.</p>
+<footer class="bg-dark text-white pt-5 pb-4 mt-5">
+  <div class="container">
+    <div class="row g-4">
+      <!-- О системе -->
+      <div class="col-lg-4">
+        <h5 class="text-uppercase fw-bold mb-4 text-white">
+          <i class="bi bi-shield-lock me-2"></i>Панель администратора
+        </h5>
+        <p class="text-white-50">
+          Профессиональная система управления галереей искусств.
+          Полный контроль над каталогом, продажами и выставками.
+        </p>
+        <div class="mt-4">
+          <span class="badge bg-primary me-2">Версия 2.1.3</span>
+          <span class="badge bg-success">Online</span>
+        </div>
+      </div>
+
+      <!-- Администрирование -->
+      <div class="col-md-4 col-lg-2">
+        <h6 class="text-uppercase fw-bold mb-4 text-white">Управление</h6>
+        <ul class="list-unstyled">
+          <li class="mb-2"><a th:href="@{/paintings}" class="text-white-50 text-decoration-none hover-white"><i class="bi bi-grid me-1"></i> Каталог</a></li>
+          <li class="mb-2"><a th:href="@{/paintings/add}" class="text-white-50 text-decoration-none hover-white"><i class="bi bi-plus-circle me-1"></i> Добавить картину</a></li>
+          <li class="mb-2"><a th:href="@{/view/exhibitions/new}" class="text-white-50 text-decoration-none hover-white"><i class="bi bi-collection me-1"></i> Добавить выставку</a></li>
+          <li class="mb-2"><a th:href="@{/sales/history-admin}" class="text-white-50 text-decoration-none hover-white"><i class="bi bi-receipt me-1"></i> Отчеты по продажам</a></li>
+        </ul>
+      </div>
+
+      <!-- Быстрые действия -->
+      <div class="col-md-4 col-lg-3">
+        <h6 class="text-uppercase fw-bold mb-4 text-white">Быстрые действия</h6>
+        <div class="d-grid gap-2">
+          <a th:href="@{/paintings/add}" class="btn btn-sm btn-outline-light text-start">
+            <i class="bi bi-plus-circle me-2"></i>Новая картина
+          </a>
+          <a th:href="@{/view/exhibitions/new}" class="btn btn-sm btn-outline-light text-start">
+            <i class="bi bi-collection me-2"></i>Создать выставку
+          </a>
+          <a th:href="@{/sales/history-admin}" class="btn btn-sm btn-outline-light text-start">
+            <i class="bi bi-file-earmark-bar-graph me-2"></i>Генерация отчета
+          </a>
+        </div>
+      </div>
+
+      <!-- Контакты поддержки -->
+      <div class="col-md-4 col-lg-3">
+        <h6 class="text-uppercase fw-bold mb-4 text-white">Техническая поддержка</h6>
+        <ul class="list-unstyled text-white-50">
+          <li class="mb-2"><i class="bi bi-headset me-2 text-primary"></i> support@artgallery.ru</li>
+          <li class="mb-2"><i class="bi bi-telephone me-2 text-primary"></i> +996 (505) 701 616</li>
+          <li class="mb-2"><i class="bi bi-clock me-2 text-primary"></i> Круглосуточно</li>
+          <li class="mb-2"><i class="bi bi-patch-question me-2 text-primary"></i> <a href="#" class="text-white-50 hover-primary">База знаний</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <hr class="my-4 bg-secondary">
+
+    <div class="row align-items-center">
+      <div class="col-md-6 text-center text-md-start">
+        <p class="mb-0 text-white-50">
+          <i class="bi bi-shield-check me-1"></i>
+          Последний вход: <span th:text="${#temporals.format(lastLogin, 'dd.MM.yyyy HH:mm')}"></span>
+        </p>
+      </div>
+      <div class="col-md-6 text-center text-md-end">
+        <a href="#" class="text-white-50 text-decoration-none me-3 hover-primary">
+          <i class="bi bi-file-earmark-text me-1"></i> Документация
+        </a>
+      </div>
+    </div>
   </div>
 </footer>
 

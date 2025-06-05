@@ -1,7 +1,8 @@
 package com.example.art.controller;
 
-import com.example.art.model.Painting;
+import com.example.art.model.*;
 import com.example.art.service.PaintingService;
+import com.example.art.service.SaleService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -18,6 +19,7 @@ import java.util.List;
 public class PaintingController {
 
     private final PaintingService paintingService;
+    private final SaleService saleService;
 
     // Предопределенный список материалов
     private static final List<String> MATERIALS = Arrays.asList(
@@ -30,11 +32,11 @@ public class PaintingController {
             "Другое"
     );
 
-    public PaintingController(PaintingService paintingService) {
+    public PaintingController(PaintingService paintingService, SaleService saleService) {
         this.paintingService = paintingService;
+        this.saleService = saleService;
     }
 
-    // Просмотр списка картин с фильтрацией
     @GetMapping
     public String listPaintings(
             @RequestParam(required = false) Long artistId,
@@ -43,11 +45,12 @@ public class PaintingController {
             @RequestParam(required = false) String genre,
             @RequestParam(required = false) String material,
             @RequestParam(required = false) String title,
+            @RequestParam(required = false) Painting.PaintingStatus status,
             Model model) {
 
         // Добавляем отфильтрованный список картин
         model.addAttribute("paintings", paintingService.getFilteredPaintings(
-                artistId, categoryId, creationYear, genre, material, title));
+                artistId, categoryId, creationYear, genre, material, title, status));
 
         // Добавляем списки для выпадающих меню фильтров
         model.addAttribute("artists", paintingService.getAllArtists());
@@ -56,10 +59,13 @@ public class PaintingController {
         model.addAttribute("availableGenres", paintingService.getAvailableGenres());
         model.addAttribute("availableMaterials", paintingService.getAvailableMaterials());
 
+        // Добавляем последние продажи
+        model.addAttribute("recentSales", saleService.findRecentSales(5));
+
         return "paintings-list";
     }
 
-    // Просмотр деталей конкретной картины
+    // Остальные методы остаются без изменений
     @GetMapping("/{id}")
     public String viewPainting(@PathVariable Long id, Model model) {
         Painting painting = paintingService.getPaintingById(id)
@@ -71,7 +77,6 @@ public class PaintingController {
         return "painting-details";
     }
 
-    // Форма добавления новой картины
     @GetMapping("/add")
     public String showAddForm(Model model) {
         model.addAttribute("painting", new Painting());
@@ -81,14 +86,12 @@ public class PaintingController {
         return "add-painting";
     }
 
-    // Обработка добавления новой картины
     @PostMapping("/add")
     public String addPainting(
             @ModelAttribute Painting painting,
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "otherMaterial", required = false) String otherMaterial
     ) throws IOException {
-
         if ("Другое".equals(painting.getMaterial())) {
             painting.setMaterial(otherMaterial);
         }
@@ -101,7 +104,6 @@ public class PaintingController {
         return "redirect:/paintings";
     }
 
-    // Форма редактирования картины
     @GetMapping("/edit/{id}")
     public String showEditForm(@PathVariable Long id, Model model) {
         Painting painting = paintingService.getPaintingById(id)
@@ -115,7 +117,6 @@ public class PaintingController {
         return "edit-painting";
     }
 
-    // Обработка обновления картины
     @PostMapping("/update/{id}")
     public String updatePainting(
             @PathVariable Long id,
@@ -123,7 +124,6 @@ public class PaintingController {
             @RequestParam(value = "file", required = false) MultipartFile file,
             @RequestParam(value = "otherMaterial", required = false) String otherMaterial
     ) throws IOException {
-
         if ("Другое".equals(painting.getMaterial())) {
             painting.setMaterial(otherMaterial);
         }
@@ -132,42 +132,17 @@ public class PaintingController {
         return "redirect:/paintings/" + id;
     }
 
-    // Удаление картины
     @PostMapping("/delete/{id}")
     public String deletePainting(@PathVariable Long id) throws IOException {
         paintingService.deletePainting(id);
         return "redirect:/paintings";
     }
 
-    // Альтернативный вариант с URL изображения вместо загрузки файла
-    @PostMapping("/add-with-url")
-    public String addPaintingWithUrl(
-            @ModelAttribute Painting painting,
-            @RequestParam String imageUrl
-    ) {
-        if (imageUrl == null || imageUrl.trim().isEmpty()) {
-            throw new IllegalArgumentException("URL изображения не может быть пустым");
-        }
-
-        paintingService.savePainting(painting, imageUrl);
-        return "redirect:/paintings";
+    @PostMapping("/{id}/status")
+    public String updateStatus(
+            @PathVariable Long id,
+            @RequestParam Painting.PaintingStatus status) {
+        paintingService.updatePaintingStatus(id, status);
+        return "redirect:/paintings/" + id;
     }
-
-
-    // Альтернативный вариант с URL изображения вместо загрузки файла
-    /*
-    @PostMapping("/add")
-    public String addPainting(
-            @ModelAttribute Painting painting,
-            @RequestParam String imageUrl
-    ) {
-        // Валидация URL
-        if (imageUrl == null || imageUrl.trim().isEmpty()) {
-            throw new IllegalArgumentException("URL изображения не может быть пустым");
-        }
-
-        paintingService.savePainting(painting, imageUrl);
-        return "redirect:/paintings";
-    }
-    */
 }

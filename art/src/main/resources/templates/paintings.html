@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Каталог картин | Галерея искусств</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --card-shadow-hover: 0 10px 15px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        .art-card {
+            border: none;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: var(--transition);
+            box-shadow: var(--card-shadow);
+            height: 100%;
+        }
+
+        .art-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--card-shadow-hover);
+        }
+
+        .art-img-container {
+            height: 220px;
+            background-color: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .art-img {
+            max-height: 100%;
+            max-width: 100%;
+            object-fit: contain;
+        }
+
+        .empty-state {
+            padding: 3rem;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .badge-custom {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .filter-btn {
+            transition: all 0.2s ease;
+        }
+
+        .filter-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .status-available {
+            background-color: #28a745;
+        }
+
+        .status-reserved {
+            background-color: #ffc107;
+            color: #212529;
+        }
+
+        .status-sold {
+            background-color: #dc3545;
+        }
+
+        @media (max-width: 768px) {
+            .art-img-container {
+                height: 180px;
+            }
+        }
+        footer a {
+            transition: color 0.2s ease;
+        }
+
+        footer a:hover {
+            color: #adb5bd !important;
+        }
+
+        .input-group input {
+            border-right: none;
+        }
+
+        .input-group button {
+            border-left: none;
+            background-color: #6c757d;
+            border-color: #6c757d;
+        }
+
+        .input-group button:hover {
+            background-color: #5a6268;
+            border-color: #545b62;
+        }
+
+        .hover-white:hover {
+            color: white !important;
+        }
+    </style>
+</head>
+<body>
+<!-- Навигация -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="#">
+            <i class="bi bi-palette me-2"></i>Галерея искусств
+        </a>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link active" th:href="@{/view/paintings}">
+                        <i class="bi bi-grid me-1"></i>Каталог
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/view/exhibitions}">
+                        <i class="bi bi-collection me-1"></i>Выставки
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/profile}">
+                        <i class="bi bi-person-circle me-1"></i>Профиль
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/cart}">
+                        <i class="bi bi-cart me-1"></i>Корзина
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/sales/history}">
+                        <i class="bi bi-receipt me-1"></i>Покупки
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/auth/login}">
+                        <i class="bi bi-box-arrow-right me-1"></i>Выйти
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- Основной контент -->
+<main class="container mb-5">
+    <!-- Заголовок -->
+    <h1 class="mb-4">
+        <i class="bi bi-images text-primary me-2"></i>Каталог картин
+    </h1>
+
+    <!-- Сообщения -->
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <span th:text="${errorMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрыть"></button>
+    </div>
+
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>
+        <span th:text="${successMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрыть"></button>
+    </div>
+
+    <!-- Фильтры -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form th:action="@{/view/paintings}" method="get">
+                <div class="row g-3 filter-row">
+                    <!-- Фильтр по статусу -->
+                    <div class="col-md-3">
+                        <label for="statusFilter" class="form-label">Статус</label>
+                        <select class="form-select" id="statusFilter" name="status">
+                            <option value="">Все статусы</option>
+                            <option th:each="status : ${T(com.example.art.model.Painting.PaintingStatus).values()}"
+                                    th:value="${status}"
+                                    th:text="${status.displayName}"
+                                    th:selected="${param.status != null && param.status[0] == status}">
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Фильтр по художнику -->
+                    <div class="col-md-3">
+                        <label for="artistFilter" class="form-label">Художник</label>
+                        <select class="form-select" id="artistFilter" name="artistId">
+                            <option value="">Все художники</option>
+                            <option th:each="artist : ${artists}"
+                                    th:value="${artist.id}"
+                                    th:text="${artist.name}"
+                                    th:selected="${param.artistId != null && param.artistId[0] == artist.id.toString()}">
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Фильтр по категории -->
+                    <div class="col-md-3">
+                        <label for="categoryFilter" class="form-label">Категория</label>
+                        <select class="form-select" id="categoryFilter" name="categoryId">
+                            <option value="">Все категории</option>
+                            <option th:each="category : ${categories}"
+                                    th:value="${category.id}"
+                                    th:text="${category.name}"
+                                    th:selected="${param.categoryId != null && param.categoryId[0] == category.id.toString()}">
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Фильтр по году создания -->
+                    <div class="col-md-3">
+                        <label for="yearFilter" class="form-label">Год создания</label>
+                        <select class="form-select" id="yearFilter" name="creationYear">
+                            <option value="">Любой год</option>
+                            <option th:each="year : ${availableYears}"
+                                    th:value="${year}"
+                                    th:text="${year}"
+                                    th:selected="${param.creationYear != null && param.creationYear[0] == year.toString()}">
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Фильтр по жанру -->
+                    <div class="col-md-3">
+                        <label for="genreFilter" class="form-label">Жанр</label>
+                        <select class="form-select" id="genreFilter" name="genre">
+                            <option value="">Все жанры</option>
+                            <option th:each="genre : ${availableGenres}"
+                                    th:value="${genre}"
+                                    th:text="${genre}"
+                                    th:selected="${param.genre != null && param.genre[0] == genre}">
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Фильтр по материалу -->
+                    <div class="col-md-3">
+                        <label for="materialFilter" class="form-label">Материал</label>
+                        <select class="form-select" id="materialFilter" name="material">
+                            <option value="">Все материалы</option>
+                            <option th:each="material : ${availableMaterials}"
+                                    th:value="${material}"
+                                    th:text="${material}"
+                                    th:selected="${param.material != null && param.material[0] == material}">
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Поиск по названию -->
+                    <div class="col-md-4">
+                        <label for="searchQuery" class="form-label">Поиск по названию</label>
+                        <input type="text" class="form-control" id="searchQuery" name="title"
+                               th:value="${param.title != null} ? ${param.title[0]} : ''"
+                               placeholder="Введите название...">
+                    </div>
+
+                    <!-- Кнопки фильтрации -->
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary filter-btn w-100">
+                            <i class="bi bi-funnel me-2"></i>Применить
+                        </button>
+                    </div>
+
+                    <div class="col-md-2 d-flex align-items-end">
+                        <a th:href="@{/view/paintings}" class="btn btn-outline-secondary filter-btn w-100">
+                            <i class="bi bi-arrow-counterclockwise me-2"></i>Сбросить
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Список картин -->
+    <div th:if="${not #lists.isEmpty(paintings)}" class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
+        <div class="col" th:each="painting : ${paintings}">
+            <div class="art-card card h-100">
+                <!-- Заголовок с статусом -->
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span th:classappend="${'status-' + painting.status.name().toLowerCase()}"
+                          class="badge text-white">
+                        <span th:text="${painting.status.displayName}"></span>
+                    </span>
+                    <span class="badge bg-primary rounded-pill"
+                          th:if="${painting.price != null}"
+                          th:text="${'$' + #numbers.formatDecimal(painting.price, 1, 2)}">
+                    </span>
+                </div>
+
+                <!-- Изображение -->
+                <div class="art-img-container">
+                    <img th:if="${painting.image != null}"
+                         th:src="@{${painting.image.imageUrl}}"
+                         class="art-img"
+                         th:alt="${painting.title}">
+                    <div th:unless="${painting.image != null}" class="text-center text-muted p-3">
+                        <i class="bi bi-image fs-1"></i>
+                        <p class="mt-2 mb-0">Изображение отсутствует</p>
+                    </div>
+                </div>
+
+                <!-- Информация -->
+                <div class="card-body">
+                    <h5 class="card-title" th:text="${painting.title}">Название</h5>
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-person me-2 text-muted"></i>
+                        <span th:text="${painting.artist?.name ?: 'Неизвестный художник'}"></span>
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-tag me-2 text-muted"></i>
+                        <span th:text="${painting.category?.name ?: 'Без категории'}"></span>
+                    </div>
+                    <div th:if="${painting.creationYear != null}" class="d-flex align-items-center">
+                        <i class="bi bi-calendar me-2 text-muted"></i>
+                        <span th:text="${painting.creationYear}"></span>
+                    </div>
+                </div>
+
+                <!-- Футер -->
+                <div class="card-footer bg-transparent d-flex justify-content-between align-items-center">
+                    <span class="badge badge-custom rounded-pill"
+                          th:if="${painting.genre}"
+                          th:text="${painting.genre}"></span>
+
+                    <div class="d-flex gap-2">
+                        <a th:href="@{/view/paintings/{id}(id=${painting.id})}"
+                           class="btn btn-sm btn-outline-primary">
+                            Подробнее
+                        </a>
+
+                        <form th:action="@{/cart/add/{id}(id=${painting.id})}" method="post">
+                            <button type="submit"
+                                    class="btn btn-sm btn-success"
+                                    th:disabled="${painting.status.name() != 'AVAILABLE'}">
+                                <i class="bi bi-cart-plus"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Пустое состояние -->
+    <div th:if="${#lists.isEmpty(paintings)}" class="empty-state text-center">
+        <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+        <h3 class="mt-3">Картины не найдены</h3>
+        <p class="text-muted mb-4">Попробуйте изменить параметры поиска</p>
+        <a th:href="@{/view/paintings}" class="btn btn-primary px-4">
+            <i class="bi bi-arrow-counterclockwise me-2"></i>Сбросить фильтры
+        </a>
+    </div>
+</main>
+
+<!-- Подвал -->
+<footer class="bg-dark text-light pt-5 pb-4 mt-5">
+    <div class="container">
+        <div class="row g-4">
+            <!-- О галерее -->
+            <div class="col-lg-4">
+                <h5 class="text-uppercase fw-bold mb-4 text-white">
+                    <i class="bi bi-palette me-2"></i>Галерея искусств
+                </h5>
+                <p class="text-white-50">
+                    Мы представляем лучшие произведения современного и классического искусства.
+                    Откройте для себя мир прекрасного вместе с нами.
+                </p>
+                <div class="mt-4">
+                    <a href="#" class="text-white me-3 hover-primary"><i class="bi bi-facebook fs-5"></i></a>
+                    <a href="#" class="text-white me-3 hover-primary"><i class="bi bi-instagram fs-5"></i></a>
+                    <a href="#" class="text-white me-3 hover-primary"><i class="bi bi-twitter fs-5"></i></a>
+                    <a href="#" class="text-white hover-primary"><i class="bi bi-pinterest fs-5"></i></a>
+                </div>
+            </div>
+
+            <!-- Быстрые ссылки -->
+            <div class="col-md-4 col-lg-2">
+                <h6 class="text-uppercase fw-bold mb-4 text-white">Навигация</h6>
+                <ul class="list-unstyled">
+                    <li class="mb-2"><a th:href="@{/view/paintings}" class="text-white-50 text-decoration-none hover-white">Каталог</a></li>
+                    <li class="mb-2"><a th:href="@{/view/exhibitions}" class="text-white-50 text-decoration-none hover-white">Выставки</a></li>
+                    <li class="mb-2"><a th:href="@{/profile}" class="text-white-50 text-decoration-none hover-white">Профиль</a></li>
+                    <li class="mb-2"><a th:href="@{/cart}" class="text-white-50 text-decoration-none hover-white">Корзина</a></li>
+                    <li class="mb-2"><a th:href="@{/sales/history}" class="text-white-50 text-decoration-none hover-white">Покупки</a></li>
+                </ul>
+            </div>
+
+            <!-- Контакты -->
+            <div class="col-md-4 col-lg-3">
+                <h6 class="text-uppercase fw-bold mb-4 text-white">Контакты</h6>
+                <ul class="list-unstyled text-white-50">
+                    <li class="mb-2"><i class="bi bi-geo-alt-fill me-2 text-white"></i> Бишкек, ул. Тимирязева, 78</li>
+                    <li class="mb-2"><i class="bi bi-telephone-fill me-2 text-white"></i> +996 (505) 701 616</li>
+                    <li class="mb-2"><i class="bi bi-envelope-fill me-2 text-white"></i> info@artgallery.ru</li>
+                    <li class="mb-2"><i class="bi bi-clock-fill me-2 text-white"></i> Пн-Пт: 10:00 - 20:00</li>
+                </ul>
+            </div>
+
+            <!-- Подписка -->
+            <div class="col-md-4 col-lg-3">
+                <h6 class="text-uppercase fw-bold mb-4 text-white">Заявка на добавление</h6>
+                <p class="text-white-50">Оставьте завку для администратора на добавление собственной картины</p>
+
+                <!-- Измененная форма -->
+                <form id="requestForm" th:action="@{/api/requests}" method="post">
+                    <div class="input-group">
+                        <input type="email" name="email" class="form-control bg-dark text-white border-secondary"
+                               placeholder="Ваш email" required>
+                        <button class="btn btn-primary" type="submit">
+                            <i class="bi bi-send"></i>
+                        </button>
+                    </div>
+                </form>
+                <div id="requestMessage" class="mt-2 small"></div>
+                <small class="text-white-50">Мы не рассылаем спам</small>
+            </div>
+        </div>
+
+        <hr class="my-4 bg-secondary">
+
+        <div class="row align-items-center">
+            <div class="col-md-6 text-center text-md-start">
+                <p class="mb-0 text-white-50">© 2023 Галерея искусств.</p>
+            </div>
+            <div class="col-md-6 text-center text-md-end">
+                <a href="#" class="text-white-50 text-decoration-none me-3 hover-white">Политика конфиденциальности</a>
+                <a href="#" class="text-white-50 text-decoration-none hover-white">Условия использования</a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    document.getElementById('requestForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const form = e.target;
+        const formData = new FormData(form);
+        const messageDiv = document.getElementById('requestMessage');
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                messageDiv.innerHTML = `<div class="alert alert-success py-1">${result.message}</div>`;
+                form.reset();
+            } else {
+                messageDiv.innerHTML = `<div class="alert alert-danger py-1">${result.error}</div>`;
+            }
+        } catch (error) {
+            messageDiv.innerHTML = `<div class="alert alert-danger py-1">Ошибка сети</div>`;
+        }
+    });
+</script>
+</body>
+</html>

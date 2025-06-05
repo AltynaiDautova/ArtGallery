@@ -1,13 +1,7 @@
 package com.example.art.service;
 
-import com.example.art.model.Artist;
-import com.example.art.model.Category;
-import com.example.art.model.Painting;
-import com.example.art.model.PaintingImage;
-import com.example.art.repository.ArtistRepository;
-import com.example.art.repository.CategoryRepository;
-import com.example.art.repository.PaintingImageRepository;
-import com.example.art.repository.PaintingRepository;
+import com.example.art.model.*;
+import com.example.art.repository.*;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Value;
@@ -46,19 +40,14 @@ public class PaintingService {
         this.imageRepository = imageRepository;
     }
 
-    // Получение списка всех картин
-    public List<Painting> getAllPaintings() {
-        return paintingRepository.findAll();
-    }
-
-    // Получение отфильтрованного списка картин
     public List<Painting> getFilteredPaintings(
             Long artistId,
             Long categoryId,
             Integer creationYear,
             String genre,
             String material,
-            String title) {
+            String title,
+            Painting.PaintingStatus status) {
 
         Specification<Painting> spec = Specification.where(null);
 
@@ -92,40 +81,51 @@ public class PaintingService {
                     cb.like(cb.lower(root.get("title")), "%" + title.toLowerCase() + "%"));
         }
 
+        if (status != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("status"), status));
+        }
+
         return paintingRepository.findAll(spec);
     }
 
-    // Получение картины по ID
+    @Transactional
+    public void updatePaintingStatus(Long paintingId, Painting.PaintingStatus status) {
+        Painting painting = paintingRepository.findById(paintingId)
+                .orElseThrow(() -> new EntityNotFoundException("Картина не найдена"));
+        painting.setStatus(status);
+        paintingRepository.save(painting);
+    }
+
+    // Остальные методы остаются без изменений
+    public List<Painting> getAllPaintings() {
+        return paintingRepository.findAll();
+    }
+
     public Optional<Painting> getPaintingById(Long id) {
         return paintingRepository.findById(id);
     }
 
-    // Получение списка всех художников
     public List<Artist> getAllArtists() {
         return artistRepository.findAll();
     }
 
-    // Получение списка всех категорий
     public List<Category> getAllCategories() {
         return categoryRepository.findAll();
     }
 
-    // Получение списка доступных годов создания
     public List<Integer> getAvailableYears() {
         return paintingRepository.findDistinctCreationYears();
     }
 
-    // Получение списка доступных жанров
     public List<String> getAvailableGenres() {
         return paintingRepository.findDistinctGenres();
     }
 
-    // Получение списка доступных материалов
     public List<String> getAvailableMaterials() {
         return paintingRepository.findDistinctMaterials();
     }
 
-    // Сохранение картины с URL изображения
     @Transactional
     public void savePainting(Painting painting, String imageUrl) {
         if (imageUrl == null || imageUrl.trim().isEmpty()) {
@@ -140,29 +140,24 @@ public class PaintingService {
         paintingRepository.save(painting);
     }
 
-    // Сохранение картины с загруженным изображением
     @Transactional
     public void savePaintingWithImage(Painting painting, MultipartFile file) throws IOException {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Файл изображения не может быть пустым");
         }
 
-        // Создаем директорию для загрузки, если ее нет
         File uploadDir = new File(uploadPath);
         if (!uploadDir.exists() && !uploadDir.mkdirs()) {
             throw new IOException("Не удалось создать директорию загрузки");
         }
 
-        // Генерируем уникальное имя файла
         String uuidFile = UUID.randomUUID().toString();
         String fileExtension = getFileExtension(file.getOriginalFilename());
         String resultFilename = uuidFile + "." + fileExtension;
         Path destination = Paths.get(uploadPath + File.separator + resultFilename);
 
-        // Сохраняем файл
         file.transferTo(destination);
 
-        // Создаем и сохраняем изображение
         PaintingImage image = new PaintingImage();
         image.setImageUrl("/img/" + resultFilename);
         image.setPainting(painting);
@@ -171,13 +166,11 @@ public class PaintingService {
         paintingRepository.save(painting);
     }
 
-    // Обновление картины
     @Transactional
     public void updatePainting(Long id, Painting paintingDetails, MultipartFile file) throws IOException {
         Painting painting = paintingRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Картина не найдена"));
 
-        // Обновляем основные данные
         painting.setTitle(paintingDetails.getTitle());
         painting.setArtist(paintingDetails.getArtist());
         painting.setCategory(paintingDetails.getCategory());
@@ -188,15 +181,12 @@ public class PaintingService {
         painting.setMaterial(paintingDetails.getMaterial());
         painting.setInventoryNumber(paintingDetails.getInventoryNumber());
 
-        // Если загружено новое изображение
         if (file != null && !file.isEmpty()) {
-            // Удаляем старое изображение
             if (painting.getImage() != null) {
                 deleteImageFile(painting.getImage().getImageUrl());
                 imageRepository.delete(painting.getImage());
             }
 
-            // Сохраняем новое изображение
             String uuidFile = UUID.randomUUID().toString();
             String fileExtension = getFileExtension(file.getOriginalFilename());
             String resultFilename = uuidFile + "." + fileExtension;
@@ -212,13 +202,11 @@ public class PaintingService {
         paintingRepository.save(painting);
     }
 
-    // Удаление картины
     @Transactional
     public void deletePainting(Long id) throws IOException {
         Painting painting = paintingRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Картина не найдена"));
 
-        // Удаляем связанное изображение
         if (painting.getImage() != null) {
             deleteImageFile(painting.getImage().getImageUrl());
             imageRepository.delete(painting.getImage());
@@ -227,7 +215,6 @@ public class PaintingService {
         paintingRepository.delete(painting);
     }
 
-    // Вспомогательный метод для удаления файла изображения
     private void deleteImageFile(String imageUrl) throws IOException {
         if (imageUrl != null && imageUrl.startsWith("/img/")) {
             String filename = imageUrl.substring("/img/".length());
@@ -236,7 +223,6 @@ public class PaintingService {
         }
     }
 
-    // Получение расширения файла
     private String getFileExtension(String filename) {
         if (filename == null || filename.lastIndexOf(".") == -1) {
             return "";

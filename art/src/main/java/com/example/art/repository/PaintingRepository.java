@@ -1,6 +1,7 @@
 package com.example.art.repository;
 
 import com.example.art.model.Painting;
+import com.example.art.model.Painting.PaintingStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -17,4 +18,9 @@ public interface PaintingRepository extends JpaRepository<Painting, Long>, JpaSp
 
     @Query("SELECT DISTINCT p.material FROM Painting p WHERE p.material IS NOT NULL")
     List<String> findDistinctMaterials();
+
+    @Query("SELECT p FROM Painting p WHERE p.status = 'AVAILABLE'")
+    List<Painting> findAllAvailable();
+
+    List<Painting> findByStatus(PaintingStatus status);
 }

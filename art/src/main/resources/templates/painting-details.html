@@ -73,15 +73,22 @@
 <!-- Навигация -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
   <div class="container">
-    <a class="navbar-brand fw-bold d-flex align-items-center" href="/">
+    <a class="navbar-brand fw-bold d-flex align-items-center" href="#">
       <i class="bi bi-palette me-2"></i>Галерея искусств
     </a>
-    <div class="d-flex">
-      <a th:href="@{/paintings}" class="btn btn-outline-light action-btn me-2">
+
+    <div class="d-flex align-items-center gap-3">
+      <a th:href="@{/paintings}" class="btn btn-outline-light">
         <i class="bi bi-arrow-left me-1"></i>Назад к каталогу
       </a>
-      <a th:href="@{/paintings/add}" class="btn btn-primary action-btn">
-        <i class="bi bi-plus-circle me-1"></i>Добавить новую
+      <a th:href="@{/paintings/add}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i>Добавить картину
+      </a>
+      <a th:href="@{/profile}" class="nav-link text-white">
+        <i class="bi bi-person-circle me-1"></i>Профиль
+      </a>
+      <a th:href="@{/auth/login}" class="nav-link text-white">
+        <i class="bi bi-box-arrow-right me-1"></i>Выйти
       </a>
     </div>
   </div>
@@ -240,7 +247,7 @@
 <footer class="bg-dark text-white py-4 mt-5">
   <div class="container text-center">
     <p class="mb-0">
-      <i class="bi bi-c-circle"></i> 2023 Галерея искусств. Все права защищены.
+      <i class="bi bi-c-circle"></i> 2023 Галерея искусств.
     </p>
   </div>
 </footer>
